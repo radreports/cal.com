@@ -219,7 +219,7 @@ export default function Success(props: SuccessProps) {
       duration: calculatedDuration,
       organizer: {
         name: users[0].name || "Nameless",
-        email: users[0].email || "Email-less",
+        email: bookingInfo.destinationCalendar?.externalId || users[0].email || "Email-less",
         timeZone: users[0].timeZone,
       },
       confirmed: !needsConfirmation,
@@ -467,7 +467,9 @@ export default function Success(props: SuccessProps) {
                                 </span>
                                 <Badge variant="blue">{t("Host")}</Badge>
                               </div>
-                              <p className="text-default">{bookingInfo.user.email}</p>
+                              <p className="text-default">
+                                {bookingInfo.destinationCalendar?.externalId ?? bookingInfo.user.email}
+                              </p>
                             </div>
                           )}
                           {bookingInfo?.attendees.map((attendee) => (
@@ -1116,6 +1118,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       cancellationReason: true,
       responses: true,
       rejectionReason: true,
+      destinationCalendar: true,
       user: {
         select: {
           id: true,
