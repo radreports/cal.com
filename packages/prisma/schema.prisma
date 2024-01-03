@@ -132,17 +132,19 @@ model EventType {
 }
 
 model Credential {
-  id     Int     @id @default(autoincrement())
+  id                    Int     @id @default(autoincrement())
   // @@type is deprecated
-  type   String
-  key    Json
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId Int?
-  team   Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId Int?
-  app    App?    @relation(fields: [appId], references: [slug], onDelete: Cascade)
+  type                  String
+  key                   Json
+  user                  User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                Int?
+  team                  Team?   @relation("teamCredentials", fields: [teamId], references: [id], onDelete: Cascade)
+  teamId                Int?
+  ownedByOrganizationId Int?
+  ownedByOrganization   Team?   @relation("orgCredentials", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
+  app                   App?    @relation(fields: [appId], references: [slug], onDelete: Cascade)
   // How to make it a required column?
-  appId  String?
+  appId                 String?
 
   // paid apps
   subscriptionId    String?
@@ -257,6 +259,8 @@ model User {
   routingForms         App_RoutingForms_Form[] @relation("routing-form")
   verifiedNumbers      VerifiedNumber[]
   hosts                Host[]
+  organizationId       Int?
+  organization         Team?                   @relation("scope", fields: [organizationId], references: [id], onDelete: SetNull)
   accessCodes          AccessCode[]
   // Linking account code for orgs v2
   //linkedByUserId       Int?
@@ -264,27 +268,41 @@ model User {
   //linkedUsers          User[]                  @relation("linked_account")*/
 
   // Used to lock the user account
-  locked      Boolean      @default(false)
-  orgProfiles OrgProfile[]
+  locked   Boolean   @default(false)
+  profiles Profile[]
 
   @@unique([email])
   @@unique([email, username])
-  @@index([username])
+  @@unique([username, organizationId])
   @@index([emailVerified])
   @@index([identityProvider])
   @@index([identityProviderId])
   @@map(name: "users")
 }
 
-model OrgProfile {
+model Profile {
   id             Int    @id @default(autoincrement())
-  // uid allows us to set an identifier chosen by us which is helpful in migration when we create the OrgProfile from User directly.
+  // uid allows us to set an identifier chosen by us which is helpful in migration when we create the Profile from User directly.
   uid            String
   userId         Int
   user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId Int
   organization   Team   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   username       String
+  // hideBranding   Boolean @default(false)
+  // theme          String?
+  // weekStart      String  @default("Sunday")
+  // timeFormat     Int?    @default(12)
+  // allowSEOIndexing Boolean? @default(true)
+  // allowDynamicBooking Boolean? @default(true)
+  // receiveMonthlyDigestEmail Boolean? @default(true)
+  // eventTypes     EventType[] @relation("user_eventtype")
+  // credentials    Credential[]
+  // schedules      Schedule[]
+  // selectedCalendars SelectedCalendar[]
+  // bookings       Booking[]
+
+  // away Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -334,10 +352,13 @@ model Team {
   routingForms         App_RoutingForms_Form[]
   orgForms             App_RoutingForms_Form[] @relation("orgForms")
   apiKeys              ApiKey[]
-  credentials          Credential[]
+  credentials          Credential[]            @relation("teamCredentials")
+  // Has all the credentials for an organization, whether it's a Team or a User credential
+  orgCredentials       Credential[]            @relation("orgCredentials")
   accessCodes          AccessCode[]
   instantMeetingTokens InstantMeetingToken[]
-  orgProfiles          OrgProfile[]
+  // Has profiles for an organization only. Holds all profiles in the organization.
+  orgProfiles          Profile[]
 
   @@unique([slug, parentId])
 }
