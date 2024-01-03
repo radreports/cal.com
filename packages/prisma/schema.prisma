@@ -47,7 +47,10 @@ model Host {
 }
 
 model EventType {
-  id                              Int                     @id @default(autoincrement())
+  id             Int   @id @default(autoincrement())
+  organizationId Int?
+  organization   Team? @relation("orgEventTypes", fields: [organizationId], references: [id], onDelete: Cascade)
+
   /// @zod.min(1)
   title                           String
   /// @zod.custom(imports.eventTypeSlug)
@@ -254,8 +257,6 @@ model User {
   routingForms         App_RoutingForms_Form[] @relation("routing-form")
   verifiedNumbers      VerifiedNumber[]
   hosts                Host[]
-  organizationId       Int?
-  organization         Team?                   @relation("scope", fields: [organizationId], references: [id], onDelete: SetNull)
   accessCodes          AccessCode[]
   // Linking account code for orgs v2
   //linkedByUserId       Int?
@@ -263,16 +264,34 @@ model User {
   //linkedUsers          User[]                  @relation("linked_account")*/
 
   // Used to lock the user account
-  locked Boolean @default(false)
+  locked      Boolean      @default(false)
+  orgProfiles OrgProfile[]
 
   @@unique([email])
   @@unique([email, username])
-  @@unique([username, organizationId])
   @@index([username])
   @@index([emailVerified])
   @@index([identityProvider])
   @@index([identityProviderId])
   @@map(name: "users")
+}
+
+model OrgProfile {
+  id             Int    @id @default(autoincrement())
+  // uid allows us to set an identifier chosen by us which is helpful in migration when we create the OrgProfile from User directly.
+  uid            String
+  userId         Int
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId Int
+  organization   Team   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  username       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
 }
 
 model Team {
@@ -292,7 +311,9 @@ model Team {
   hideBookATeamMember  Boolean                 @default(false)
   members              Membership[]
   eventTypes           EventType[]
+  orgEventTypes        EventType[]             @relation("orgEventTypes")
   workflows            Workflow[]
+  orgWorkflows         Workflow[]              @relation("orgWorkflows")
   createdAt            DateTime                @default(now())
   /// @zod.custom(imports.teamMetadataSchema)
   metadata             Json?
@@ -306,14 +327,17 @@ model Team {
   orgUsers             User[]                  @relation("scope")
   inviteTokens         VerificationToken[]
   webhooks             Webhook[]
+  orgWebhooks          Webhook[]               @relation("orgWebhooks")
   timeFormat           Int?
   timeZone             String                  @default("Europe/London")
   weekStart            String                  @default("Sunday")
   routingForms         App_RoutingForms_Form[]
+  orgForms             App_RoutingForms_Form[] @relation("orgForms")
   apiKeys              ApiKey[]
   credentials          Credential[]
   accessCodes          AccessCode[]
   instantMeetingTokens InstantMeetingToken[]
+  orgProfiles          OrgProfile[]
 
   @@unique([slug, parentId])
 }
@@ -597,6 +621,8 @@ enum WebhookTriggerEvents {
 model Webhook {
   id              String                 @id @unique
   userId          Int?
+  organizationId  Int?
+  organization    Team?                  @relation("orgWebhooks", fields: [organizationId], references: [id], onDelete: Cascade)
   teamId          Int?
   eventTypeId     Int?
   /// @zod.url()
@@ -714,24 +740,26 @@ model App {
 }
 
 model App_RoutingForms_Form {
-  id          String                          @id @default(cuid())
-  description String?
-  position    Int                             @default(0)
-  routes      Json?
-  createdAt   DateTime                        @default(now())
-  updatedAt   DateTime                        @updatedAt
-  name        String
-  fields      Json?
-  user        User                            @relation("routing-form", fields: [userId], references: [id], onDelete: Cascade)
+  id             String                          @id @default(cuid())
+  description    String?
+  position       Int                             @default(0)
+  routes         Json?
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
+  name           String
+  fields         Json?
+  user           User                            @relation("routing-form", fields: [userId], references: [id], onDelete: Cascade)
   // This is the user who created the form and also the user who has read-write access to the form
   // If teamId is set, the members of the team would also have access to form readOnly or read-write depending on their permission level as team member.
-  userId      Int
-  team        Team?                           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId      Int?
-  responses   App_RoutingForms_FormResponse[]
-  disabled    Boolean                         @default(false)
+  userId         Int
+  team           Team?                           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organizationId Int?
+  organization   Team?                           @relation("orgForms", fields: [organizationId], references: [id], onDelete: Cascade)
+  teamId         Int?
+  responses      App_RoutingForms_FormResponse[]
+  disabled       Boolean                         @default(false)
   /// @zod.custom(imports.RoutingFormSettings)
-  settings    Json?
+  settings       Json?
 
   @@index([userId])
   @@index([disabled])
@@ -800,7 +828,10 @@ model WorkflowStep {
 }
 
 model Workflow {
-  id       Int                     @id @default(autoincrement())
+  id             Int   @id @default(autoincrement())
+  organizationId Int?
+  organization   Team? @relation("orgWorkflows", fields: [organizationId], references: [id], onDelete: Cascade)
+
   position Int                     @default(0)
   name     String
   userId   Int?
