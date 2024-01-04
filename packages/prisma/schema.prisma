@@ -48,8 +48,8 @@ model Host {
 
 model EventType {
   id             Int   @id @default(autoincrement())
-  organizationId Int?
-  organization   Team? @relation("orgEventTypes", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedByOrganizationId Int?
+  ownedByOrganization   Team? @relation("orgEventTypes", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
 
   /// @zod.min(1)
   title                           String
@@ -642,8 +642,8 @@ enum WebhookTriggerEvents {
 model Webhook {
   id              String                 @id @unique
   userId          Int?
-  organizationId  Int?
-  organization    Team?                  @relation("orgWebhooks", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedByOrganizationId  Int?
+  ownedByOrganization    Team?                  @relation("orgWebhooks", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
   teamId          Int?
   eventTypeId     Int?
   /// @zod.url()
@@ -774,8 +774,8 @@ model App_RoutingForms_Form {
   // If teamId is set, the members of the team would also have access to form readOnly or read-write depending on their permission level as team member.
   userId         Int
   team           Team?                           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  organizationId Int?
-  organization   Team?                           @relation("orgForms", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedByOrganizationId Int?
+  ownedByOrganization   Team?                           @relation("orgForms", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
   teamId         Int?
   responses      App_RoutingForms_FormResponse[]
   disabled       Boolean                         @default(false)
@@ -850,8 +850,8 @@ model WorkflowStep {
 
 model Workflow {
   id             Int   @id @default(autoincrement())
-  organizationId Int?
-  organization   Team? @relation("orgWorkflows", fields: [organizationId], references: [id], onDelete: Cascade)
+  ownedByOrganizationId Int?
+  ownedByOrganization   Team? @relation("orgWorkflows", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
 
   position Int                     @default(0)
   name     String
