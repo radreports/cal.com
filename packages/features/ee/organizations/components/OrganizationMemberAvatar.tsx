@@ -1,26 +1,29 @@
 import classNames from "@calcom/lib/classNames";
 import { getOrgAvatarUrl } from "@calcom/lib/getAvatarUrl";
+import type { RelevantProfile } from "@calcom/types/RelevantProfile";
 // import { Avatar } from "@calcom/ui";
 import { UserAvatar } from "@calcom/web/components/ui/avatar/UserAvatar";
 
-type OrganizationMemberAvatarProps = React.ComponentProps<typeof UserAvatar> & {
-  organization: {
-    id: number;
-    slug: string | null;
-    requestedSlug: string | null;
-  } | null;
+type WithoutOrganizationRelevantProfile = Omit<NonNullable<RelevantProfile>, "organization">;
+type UserAvatarProps = React.ComponentProps<typeof UserAvatar>;
+type OrganizationMemberAvatarProps = Omit<UserAvatarProps, "user"> & {
+  user: UserAvatarProps["user"] & {
+    relevantProfile:
+      | (WithoutOrganizationRelevantProfile & {
+          organization: {
+            slug: string | null;
+            requestedSlug: string | null;
+          };
+        })
+      | null;
+  };
 };
 
 /**
  * Shows the user's avatar along with a small organization's avatar
  */
-const OrganizationMemberAvatar = ({
-  size,
-  user,
-  organization,
-  previewSrc,
-  ...rest
-}: OrganizationMemberAvatarProps) => {
+const OrganizationMemberAvatar = ({ size, user, previewSrc, ...rest }: OrganizationMemberAvatarProps) => {
+  const organization = user.relevantProfile?.organization;
   return (
     <UserAvatar
       data-testid="organization-avatar"

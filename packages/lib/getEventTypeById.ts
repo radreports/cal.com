@@ -8,6 +8,7 @@ import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/
 import { parseBookingLimit, parseDurationLimit, parseRecurringEvent } from "@calcom/lib";
 import { getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
 import { getTranslation } from "@calcom/lib/server/i18n";
+import { Profile } from "@calcom/lib/server/repository/profile";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Credential } from "@calcom/prisma/client";
 import { SchedulingType, MembershipRole } from "@calcom/prisma/enums";
@@ -24,9 +25,11 @@ interface getEventTypeByIdProps {
   prisma: PrismaClient;
   isTrpcCall?: boolean;
   isUserOrganizationAdmin: boolean;
+  currentOrganizationId: number | null;
 }
 
 export default async function getEventTypeById({
+  currentOrganizationId,
   eventTypeId,
   userId,
   prisma,
@@ -35,10 +38,10 @@ export default async function getEventTypeById({
 }: getEventTypeByIdProps) {
   const userSelect = Prisma.validator<Prisma.UserSelect>()({
     name: true,
+    avatarUrl: true,
     username: true,
     id: true,
     email: true,
-    organizationId: true,
     locale: true,
     defaultScheduleId: true,
   });
@@ -110,11 +113,7 @@ export default async function getEventTypeById({
       successRedirectUrl: true,
       currency: true,
       bookingFields: true,
-      owner: {
-        select: {
-          organizationId: true,
-        },
-      },
+      owner: true,
       parent: {
         select: {
           teamId: true,
@@ -172,11 +171,11 @@ export default async function getEventTypeById({
         select: {
           owner: {
             select: {
+              avatarUrl: true,
               name: true,
               username: true,
               email: true,
               id: true,
-              organizationId: true,
             },
           },
           hidden: true,
@@ -246,6 +245,46 @@ export default async function getEventTypeById({
   const newMetadata = EventTypeMetaDataSchema.parse(metadata || {}) || {};
   const apps = newMetadata?.apps || {};
   const eventTypeWithParsedMetadata = { ...rawEventType, metadata: newMetadata };
+  const eventTeamMembershipsWithRelevantProfile = [];
+  for (const eventTeamMembership of rawEventType.team?.members || []) {
+    eventTeamMembershipsWithRelevantProfile.push({
+      ...eventTeamMembership,
+      user: {
+        ...eventTeamMembership.user,
+        relevantProfile: await Profile.getRelevantOrgProfile({
+          userId: eventTeamMembership.user.id,
+          ownedByOrganizationId: rawEventType.team ? rawEventType.team.parentId : currentOrganizationId,
+        }),
+      },
+    });
+  }
+
+  const childrenWithRelevantProfile = [];
+  for (const child of rawEventType.children || []) {
+    childrenWithRelevantProfile.push({
+      ...child,
+      owner: child.owner
+        ? {
+            ...child.owner,
+            relevantProfile: await Profile.getRelevantOrgProfile({
+              userId: child.owner.id,
+              ownedByOrganizationId: rawEventType.team ? rawEventType.team.parentId : currentOrganizationId,
+            }),
+          }
+        : null,
+    });
+  }
+
+  const eventTypeUsersWithRelevantProfile = [];
+  for (const eventTypeUser of rawEventType.users) {
+    eventTypeUsersWithRelevantProfile.push({
+      ...eventTypeUser,
+      relevantProfile: await Profile.getRelevantOrgProfile({
+        userId: eventTypeUser.id,
+        ownedByOrganizationId: rawEventType.team ? rawEventType.team.parentId : currentOrganizationId,
+      }),
+    });
+  }
 
   newMetadata.apps = {
     ...apps,
@@ -268,11 +307,11 @@ export default async function getEventTypeById({
     customInputs: parsedCustomInputs,
     users: rawEventType.users,
     bookerUrl: restEventType.team
-      ? await getBookerBaseUrl({ organizationId: restEventType.team.parentId })
+      ? await getBookerBaseUrl(restEventType.team.parentId)
       : restEventType.owner
-      ? await getBookerBaseUrl(restEventType.owner)
+      ? await getBookerBaseUrl(currentOrganizationId)
       : WEBAPP_URL,
-    children: restEventType.children.flatMap((ch) =>
+    children: childrenWithRelevantProfile.flatMap((ch) =>
       ch.owner !== null
         ? {
             ...ch,
@@ -313,12 +352,11 @@ export default async function getEventTypeById({
     eventType.users.push(fallbackUser);
   }
 
-  const eventTypeUsers: ((typeof eventType.users)[number] & { avatar: string })[] = eventType.users.map(
-    (user) => ({
+  const eventTypeUsers: ((typeof eventType.users)[number] & { avatar: string })[] =
+    eventTypeUsersWithRelevantProfile.map((user) => ({
       ...user,
       avatar: getUserAvatarUrl(user),
-    })
-  );
+    }));
 
   const currentUser = eventType.users.find((u) => u.id === userId);
 
@@ -357,7 +395,7 @@ export default async function getEventTypeById({
 
   const isOrgEventType = !!eventTypeObject.team?.parentId;
   const teamMembers = eventTypeObject.team
-    ? eventTypeObject.team.members
+    ? eventTeamMembershipsWithRelevantProfile
         .filter((member) => member.accepted || isOrgEventType)
         .map((member) => {
           const user: typeof member.user & { avatar: string } = {

@@ -48,8 +48,6 @@ model Host {
 
 model EventType {
   id             Int   @id @default(autoincrement())
-  ownedByOrganizationId Int?
-  ownedByOrganization   Team? @relation("orgEventTypes", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
 
   /// @zod.min(1)
   title                           String
@@ -140,8 +138,6 @@ model Credential {
   userId                Int?
   team                  Team?   @relation("teamCredentials", fields: [teamId], references: [id], onDelete: Cascade)
   teamId                Int?
-  ownedByOrganizationId Int?
-  ownedByOrganization   Team?   @relation("orgCredentials", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
   app                   App?    @relation(fields: [appId], references: [slug], onDelete: Cascade)
   // How to make it a required column?
   appId                 String?
@@ -259,8 +255,8 @@ model User {
   routingForms         App_RoutingForms_Form[] @relation("routing-form")
   verifiedNumbers      VerifiedNumber[]
   hosts                Host[]
-  organizationId       Int?
-  organization         Team?                   @relation("scope", fields: [organizationId], references: [id], onDelete: SetNull)
+  // organizationId       Int?
+  // organization         Team?                   @relation("scope", fields: [organizationId], references: [id], onDelete: SetNull)
   accessCodes          AccessCode[]
   // Linking account code for orgs v2
   //linkedByUserId       Int?
@@ -273,7 +269,7 @@ model User {
 
   @@unique([email])
   @@unique([email, username])
-  @@unique([username, organizationId])
+  @@unique([username])
   @@index([emailVerified])
   @@index([identityProvider])
   @@index([identityProviderId])
@@ -329,9 +325,7 @@ model Team {
   hideBookATeamMember  Boolean                 @default(false)
   members              Membership[]
   eventTypes           EventType[]
-  orgEventTypes        EventType[]             @relation("orgEventTypes")
   workflows            Workflow[]
-  orgWorkflows         Workflow[]              @relation("orgWorkflows")
   createdAt            DateTime                @default(now())
   /// @zod.custom(imports.teamMetadataSchema)
   metadata             Json?
@@ -342,24 +336,17 @@ model Team {
   parentId             Int?
   parent               Team?                   @relation("organization", fields: [parentId], references: [id], onDelete: Cascade)
   children             Team[]                  @relation("organization")
-  orgUsers             User[]                  @relation("scope")
   inviteTokens         VerificationToken[]
   webhooks             Webhook[]
-  orgWebhooks          Webhook[]               @relation("orgWebhooks")
   timeFormat           Int?
   timeZone             String                  @default("Europe/London")
   weekStart            String                  @default("Sunday")
   routingForms         App_RoutingForms_Form[]
-  orgForms             App_RoutingForms_Form[] @relation("orgForms")
   apiKeys              ApiKey[]
   credentials          Credential[]            @relation("teamCredentials")
-  // Has all the credentials for an organization, whether it's a Team or a User credential
-  orgCredentials       Credential[]            @relation("orgCredentials")
   accessCodes          AccessCode[]
   instantMeetingTokens InstantMeetingToken[]
-  // Has profiles for an organization only. Holds all profiles in the organization.
   orgProfiles          Profile[]
-
   @@unique([slug, parentId])
 }
 
@@ -642,8 +629,6 @@ enum WebhookTriggerEvents {
 model Webhook {
   id              String                 @id @unique
   userId          Int?
-  ownedByOrganizationId  Int?
-  ownedByOrganization    Team?                  @relation("orgWebhooks", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
   teamId          Int?
   eventTypeId     Int?
   /// @zod.url()
@@ -774,8 +759,6 @@ model App_RoutingForms_Form {
   // If teamId is set, the members of the team would also have access to form readOnly or read-write depending on their permission level as team member.
   userId         Int
   team           Team?                           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  ownedByOrganizationId Int?
-  ownedByOrganization   Team?                           @relation("orgForms", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
   teamId         Int?
   responses      App_RoutingForms_FormResponse[]
   disabled       Boolean                         @default(false)
@@ -850,9 +833,6 @@ model WorkflowStep {
 
 model Workflow {
   id             Int   @id @default(autoincrement())
-  ownedByOrganizationId Int?
-  ownedByOrganization   Team? @relation("orgWorkflows", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
-
   position Int                     @default(0)
   name     String
   userId   Int?

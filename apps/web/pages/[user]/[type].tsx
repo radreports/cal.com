@@ -8,10 +8,10 @@ import { getBookerWrapperClasses } from "@calcom/features/bookings/Booker/utils/
 import { BookerSeo } from "@calcom/features/bookings/components/BookerSeo";
 import { getBookingForReschedule, getBookingForSeatedEvent } from "@calcom/features/bookings/lib/get-booking";
 import type { GetBookingType } from "@calcom/features/bookings/lib/get-booking";
-import { orgDomainConfig, userOrgQuery } from "@calcom/features/ee/organizations/lib/orgDomains";
+import { orgDomainConfig } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { getUsernameList } from "@calcom/lib/defaultEvents";
+import { User } from "@calcom/lib/server/repository/user";
 import slugify from "@calcom/lib/slugify";
-import prisma from "@calcom/prisma";
 import { RedirectType } from "@calcom/prisma/client";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -89,22 +89,13 @@ async function getDynamicGroupPageProps(context: GetServerSidePropsContext) {
   const { ssrInit } = await import("@server/lib/ssr");
   const ssr = await ssrInit(context);
   const { currentOrgDomain, isValidOrgDomain } = orgDomainConfig(context.req, context.params?.orgSlug);
-
-  const users = await prisma.user.findMany({
-    where: {
-      username: {
-        in: usernames,
-      },
-      organization: isValidOrgDomain
-        ? {
-            slug: currentOrgDomain,
-          }
-        : null,
-    },
-    select: {
-      allowDynamicBooking: true,
-    },
+  const usersInOrgContext = await User.getUsersFromUsernameInOrgContext({
+    usernameList: usernames,
+    isValidOrgDomain,
+    currentOrgDomain,
   });
+
+  const users = usersInOrgContext;
 
   if (!users.length) {
     return {
@@ -182,17 +173,13 @@ async function getUserPageProps(context: GetServerSidePropsContext) {
 
   const { ssrInit } = await import("@server/lib/ssr");
   const ssr = await ssrInit(context);
-  const user = await prisma.user.findFirst({
-    where: {
-      username,
-      organization: userOrgQuery(context.req, context.params?.orgSlug),
-    },
-    select: {
-      away: true,
-      hideBranding: true,
-      allowSEOIndexing: true,
-    },
+  const [user] = await User.getUsersFromUsernameInOrgContext({
+    usernameList: [username],
+    isValidOrgDomain,
+    currentOrgDomain,
   });
+
+  console.log("[type] - getUsersFromUsernameInOrgContext", user);
 
   if (!user) {
     return {

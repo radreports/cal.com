@@ -112,7 +112,9 @@ export const ONBOARDING_NEXT_REDIRECT = {
 } as const;
 
 export const shouldShowOnboarding = (
-  user: Pick<User, "createdDate" | "completedOnboarding" | "organizationId">
+  user: Pick<User, "createdDate" | "completedOnboarding"> & {
+    organizationId: number | null;
+  }
 ) => {
   return (
     !user.completedOnboarding &&
@@ -890,30 +892,51 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
         style={{ maxHeight: `calc(100vh - ${bannersHeight}px)`, top: `${bannersHeight}px` }}
         className="desktop-transparent bg-muted border-muted fixed left-0 hidden h-full max-h-screen w-14 flex-col overflow-y-auto overflow-x-hidden border-r md:sticky md:flex lg:w-56 lg:px-3">
         <div className="flex h-full flex-col justify-between py-3 lg:pt-4">
-          <header>
-            <div className="items-center justify-between md:hidden lg:flex">
-              <ProfileDropdown />
-              <div className="flex space-x-0.5 rtl:space-x-reverse">
-                <button
-                  color="minimal"
-                  onClick={() => window.history.back()}
-                  className="desktop-only hover:text-emphasis text-subtle group flex text-sm font-medium">
-                  <ArrowLeft className="group-hover:text-emphasis text-subtle h-4 w-4 flex-shrink-0" />
-                </button>
-                <button
-                  color="minimal"
-                  onClick={() => window.history.forward()}
-                  className="desktop-only hover:text-emphasis text-subtle group flex text-sm font-medium">
-                  <ArrowRight className="group-hover:text-emphasis text-subtle h-4 w-4 flex-shrink-0" />
-                </button>
-                <div>
-                  <div data-testid="user-dropdown-trigger" className="flex items-center">
-                    <UserDropdown small />
-                  </div>
+          <header className="items-center justify-between md:hidden lg:flex">
+            {orgBranding ? (
+              <Link href="/settings/organizations/profile" className="px-1.5">
+                <div className="flex items-center gap-2 font-medium">
+                  <Avatar
+                    alt={`${orgBranding.name} logo`}
+                    imageSrc={`${orgBranding.fullDomain}/org/${orgBranding.slug}/avatar.png`}
+                    size="xsm"
+                  />
+                  <p className="text line-clamp-1 text-sm">
+                    <span>{orgBranding.name}</span>
+                  </p>
                 </div>
-
-                <KBarTrigger />
+              </Link>
+            ) : (
+              <div data-testid="user-dropdown-trigger">
+                <span className="hidden lg:inline">
+                  <UserDropdown />
+                </span>
+                <span className="hidden md:inline lg:hidden">
+                  <UserDropdown small />
+                </span>
               </div>
+            )}
+            <ProfileDropdown />
+            <div className="flex space-x-0.5 rtl:space-x-reverse">
+              <button
+                color="minimal"
+                onClick={() => window.history.back()}
+                className="desktop-only hover:text-emphasis text-subtle group flex text-sm font-medium">
+                <ArrowLeft className="group-hover:text-emphasis text-subtle h-4 w-4 flex-shrink-0" />
+              </button>
+              <button
+                color="minimal"
+                onClick={() => window.history.forward()}
+                className="desktop-only hover:text-emphasis text-subtle group flex text-sm font-medium">
+                <ArrowRight className="group-hover:text-emphasis text-subtle h-4 w-4 flex-shrink-0" />
+              </button>
+              <div>
+                <div data-testid="user-dropdown-trigger" className="flex items-center">
+                  <UserDropdown small />
+                </div>
+              </div>
+
+              <KBarTrigger />
             </div>
           </header>
 

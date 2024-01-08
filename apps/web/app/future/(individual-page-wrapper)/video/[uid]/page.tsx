@@ -45,6 +45,8 @@ async function getData(context: Omit<GetServerSidePropsContext, "res" | "resolve
           timeZone: true,
           name: true,
           email: true,
+          // FIXME: OrgNewSchema - remove this
+          //@ts-expect-error - Fix it later
           organization: {
             select: {
               calVideoLogo: true,

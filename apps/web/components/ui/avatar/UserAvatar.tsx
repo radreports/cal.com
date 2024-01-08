@@ -1,9 +1,12 @@
 import { getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
 import type { User } from "@calcom/prisma/client";
+import type { RelevantProfile } from "@calcom/types/RelevantProfile";
 import { Avatar } from "@calcom/ui";
 
 type UserAvatarProps = Omit<React.ComponentProps<typeof Avatar>, "alt" | "imageSrc"> & {
-  user: Pick<User, "organizationId" | "name" | "username">;
+  user: Pick<User, "name" | "username" | "avatarUrl"> & {
+    relevantProfile: RelevantProfile;
+  };
   /**
    * Useful when allowing the user to upload their own avatar and showing the avatar before it's uploaded
    */
