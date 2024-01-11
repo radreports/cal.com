@@ -895,7 +895,7 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
         <div className="flex h-full flex-col justify-between py-3 lg:pt-4">
           <header className="todesktop:-mt-3 todesktop:flex-col-reverse todesktop:[-webkit-app-region:drag] items-center justify-between md:hidden lg:flex">
             {orgBranding ? (
-              <Link href="/settings/organizations/profile" className="mt-3 w-full px-1.5">
+              <Link href="/settings/organizations/profile" className="w-full px-1.5">
                 <div className="flex items-center gap-2 font-medium">
                   <Avatar
                     alt={`${orgBranding.name} logo`}
@@ -931,11 +931,11 @@ function SideBar({ bannersHeight, user }: SideBarProps) {
                 className="todesktop:block hover:text-emphasis text-subtle group hidden text-sm font-medium">
                 <ArrowRight className="group-hover:text-emphasis text-subtle h-4 w-4 flex-shrink-0" />
               </button>
-              <div>
+              {!!orgBranding && (
                 <div data-testid="user-dropdown-trigger" className="flex items-center">
                   <UserDropdown small />
                 </div>
-              </div>
+              )}
 
               <KBarTrigger />
             </div>
@@ -1139,7 +1139,7 @@ function ProfileDropdown() {
   }));
   return (
     <SelectField
-      containerClassName="w-fuldl"
+      containerClassName="w-full"
       options={options}
       value={options.find((option) => option.value === (sessionData?.profileId ?? null))}
       onChange={(option) => {

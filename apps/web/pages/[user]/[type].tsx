@@ -92,8 +92,7 @@ async function getDynamicGroupPageProps(context: GetServerSidePropsContext) {
   const { currentOrgDomain, isValidOrgDomain } = orgDomainConfig(context.req, context.params?.orgSlug);
   const usersInOrgContext = await User.getUsersFromUsernameInOrgContext({
     usernameList: usernames,
-    isValidOrgDomain,
-    currentOrgDomain,
+    orgSlug: isValidOrgDomain ? currentOrgDomain : null,
   });
 
   const users = usersInOrgContext;
@@ -176,8 +175,7 @@ async function getUserPageProps(context: GetServerSidePropsContext) {
   const ssr = await ssrInit(context);
   const [user] = await User.getUsersFromUsernameInOrgContext({
     usernameList: [username],
-    isValidOrgDomain,
-    currentOrgDomain,
+    orgSlug: isValidOrgDomain ? currentOrgDomain : null,
   });
 
   console.log("[type] - getUsersFromUsernameInOrgContext", user);

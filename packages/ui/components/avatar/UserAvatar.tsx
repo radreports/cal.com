@@ -1,7 +1,7 @@
 import { classNames } from "@calcom/lib";
 import { getOrgAvatarUrl, getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
 import type { User } from "@calcom/prisma/client";
-import type { RelevantProfile } from "@calcom/types/RelevantProfile";
+import type { UserProfile } from "@calcom/types/UserProfile";
 import { Avatar } from "@calcom/ui";
 
 type Organization = {
@@ -13,7 +13,7 @@ type Organization = {
 
 type UserAvatarProps = Omit<React.ComponentProps<typeof Avatar>, "alt" | "imageSrc"> & {
   user: Pick<User, "name" | "username" | "avatarUrl"> & {
-    relevantProfile: RelevantProfile;
+    profile: UserProfile;
   };
   /**
    * Useful when allowing the user to upload their own avatar and showing the avatar before it's uploaded
@@ -45,8 +45,7 @@ function OrganizationIndicator({
  */
 export function UserAvatar(props: UserAvatarProps) {
   const { user, previewSrc = getUserAvatarUrl(user), ...rest } = props;
-  const organization = user.relevantProfile?.organization ?? null;
-
+  const organization = user.profile?.organization ?? null;
   const indicator = organization ? (
     <OrganizationIndicator size={props.size} organization={organization} user={props.user} />
   ) : (

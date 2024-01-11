@@ -178,6 +178,7 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
           userId: user.id,
           organizationId: team.id,
           username: getOrgUsernameFromEmail(user.email, team.metadata.orgAutoAcceptEmail || null),
+          email: user.email,
         });
         const orgConnectionInfo =
           orgConnectInfoByUsernameOrEmail[user.email] || orgConnectInfoByUsernameOrEmail[user.username || ""];

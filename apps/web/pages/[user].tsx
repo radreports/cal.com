@@ -29,7 +29,7 @@ import prisma from "@calcom/prisma";
 import { RedirectType, type EventType, type User as UserType } from "@calcom/prisma/client";
 import { baseEventTypeSelect } from "@calcom/prisma/selects";
 import { EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import type { RelevantProfile } from "@calcom/types/RelevantProfile";
+import type { UserProfile } from "@calcom/types/UserProfile";
 import { HeadSeo, UnpublishedEntity } from "@calcom/ui";
 import { UserAvatar } from "@calcom/ui";
 import { Verified, ArrowRight } from "@calcom/ui/components/icon";
@@ -132,7 +132,7 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
               size="xl"
               user={{
                 avatarUrl: user.avatarUrl,
-                relevantProfile: user.relevantProfile,
+                profile: user.profile,
                 name: profile.name,
                 username: profile.username,
               }}
@@ -271,12 +271,12 @@ export type UserPageProps = {
       requestedSlug: string | null;
       slug: string | null;
       id: number | null;
-    };
+    } | null;
     allowSEOIndexing: boolean;
     username: string | null;
   };
   users: (Pick<UserType, "away" | "name" | "username" | "bio" | "verified" | "avatarUrl"> & {
-    relevantProfile: RelevantProfile;
+    profile: UserProfile;
   })[];
   themeBasis: string | null;
   markdownStrippedBio: string;
@@ -324,8 +324,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
   }
   const usersInOrgContext = await User.getUsersFromUsernameInOrgContext({
     usernameList,
-    isValidOrgDomain,
-    currentOrgDomain,
+    orgSlug: isValidOrgDomain ? currentOrgDomain : null,
   });
 
   const usersWithoutAvatar = usersInOrgContext.map((user) => {
@@ -366,11 +365,13 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
     }
   }
 
-  const isNonOrgUser = (user: { relevantProfile: unknown }) => {
-    return !user.relevantProfile;
+  const isNonOrgUser = (user: { profile: UserProfile }) => {
+    return !user.profile?.organization;
   };
 
-  if (!users.length || (!isValidOrgDomain && !users.some(isNonOrgUser))) {
+  const isThereAnyNonOrgUser = users.some(isNonOrgUser);
+
+  if (!users.length || (!isValidOrgDomain && !isThereAnyNonOrgUser)) {
     return {
       notFound: true,
     } as {
@@ -389,11 +390,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
     darkBrandColor: user.darkBrandColor,
     allowSEOIndexing: user.allowSEOIndexing ?? true,
     username: user.username,
-    organization: {
-      id: user.relevantProfile?.organization.id ?? null,
-      slug: user.relevantProfile?.organization?.slug ?? null,
-      requestedSlug: user.relevantProfile?.organization?.metadata?.requestedSlug ?? null,
-    },
+    organization: user.profile.organization,
   };
 
   const eventTypesWithHidden = await getEventTypesWithHiddenFromDB(user.id);
@@ -412,7 +409,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
   // if profile only has one public event-type, redirect to it
   if (eventTypes.length === 1 && context.query.redirect !== "false" && !outOfOffice) {
     // Redirect but don't change the URL
-    const urlDestination = `/${user.relevantProfile.username}/${eventTypes[0].slug}`;
+    const urlDestination = `/${user.profile.username}/${eventTypes[0].slug}`;
     const { query } = context;
     const urlQuery = new URLSearchParams(encode(query));
 
@@ -427,7 +424,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
   const safeBio = markdownToSafeHTML(user.bio) || "";
 
   const markdownStrippedBio = stripMarkdown(user?.bio || "");
-  const org = usersWithoutAvatar[0].relevantProfile?.organization;
+  const org = usersWithoutAvatar[0].profile.organization;
 
   return {
     props: {
@@ -438,7 +435,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
         avatarUrl: user.avatarUrl,
         away: usernameList.length === 1 ? outOfOffice : user.away,
         verified: user.verified,
-        relevantProfile: user.relevantProfile,
+        profile: user.profile,
       })),
       entity: {
         isUnpublished: org?.slug === null,
