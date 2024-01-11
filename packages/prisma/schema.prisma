@@ -48,7 +48,6 @@ model Host {
 
 model EventType {
   id             Int   @id @default(autoincrement())
-
   /// @zod.min(1)
   title                           String
   /// @zod.custom(imports.eventTypeSlug)
@@ -136,7 +135,7 @@ model Credential {
   key                   Json
   user                  User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId                Int?
-  team                  Team?   @relation("teamCredentials", fields: [teamId], references: [id], onDelete: Cascade)
+  team                  Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
   teamId                Int?
   app                   App?    @relation(fields: [appId], references: [slug], onDelete: Cascade)
   // How to make it a required column?
@@ -343,7 +342,7 @@ model Team {
   weekStart            String                  @default("Sunday")
   routingForms         App_RoutingForms_Form[]
   apiKeys              ApiKey[]
-  credentials          Credential[]            @relation("teamCredentials")
+  credentials          Credential[]            
   accessCodes          AccessCode[]
   instantMeetingTokens InstantMeetingToken[]
   orgProfiles          Profile[]
