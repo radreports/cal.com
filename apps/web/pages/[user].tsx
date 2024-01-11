@@ -2,6 +2,8 @@ import type { DehydratedState } from "@tanstack/react-query";
 import classNames from "classnames";
 import type { GetServerSideProps, InferGetServerSidePropsType } from "next";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { encode } from "querystring";
 import { Toaster } from "react-hot-toast";
 import type { z } from "zod";
 
@@ -11,6 +13,7 @@ import {
   useEmbedStyles,
   useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
+import { handleUserRedirection } from "@calcom/features/booking-redirect/handle-user";
 import { orgDomainConfig } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { EventTypeDescriptionLazy as EventTypeDescription } from "@calcom/features/eventtypes/components";
 import EmptyPage from "@calcom/features/eventtypes/components/EmptyPage";
@@ -42,6 +45,7 @@ import { getTemporaryOrgRedirect } from "../lib/getTemporaryOrgRedirect";
 const log = logger.getSubLogger({ prefix: ["[[user.tsx]]"] });
 export function UserPage(props: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const { users, profile, eventTypes, markdownStrippedBio, entity } = props;
+  const searchParams = useSearchParams();
 
   const [user] = users; //To be used when we only have a single user, not dynamic group
   useTheme(profile.theme);
@@ -60,6 +64,8 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
     ...query
   } = useRouterQuery();
 
+  const isRedirect = searchParams?.get("redirected") === "true" || false;
+  const fromUserNameRedirected = searchParams?.get("username") || "";
   /*
    const telemetry = useTelemetry();
    useEffect(() => {
@@ -78,6 +84,7 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
   }
 
   const isEventListEmpty = eventTypes.length === 0;
+
   return (
     <>
       <HeadSeo
@@ -101,6 +108,25 @@ export function UserPage(props: InferGetServerSidePropsType<typeof getServerSide
             isEmbed ? "border-booker border-booker-width  bg-default rounded-md border" : "",
             "max-w-3xl px-4 py-24"
           )}>
+          {isRedirect && (
+            <div className="mb-8 rounded-md bg-blue-100 p-4 dark:border dark:bg-transparent dark:bg-transparent">
+              <h2 className="text-default mb-2 text-sm font-semibold dark:text-white">
+                {t("user_redirect_title", {
+                  username: fromUserNameRedirected,
+                })}{" "}
+                🏝️
+              </h2>
+              <p className="text-default text-sm">
+                {t("user_redirect_description", {
+                  profile: {
+                    username: user.username,
+                  },
+                  username: fromUserNameRedirected,
+                })}{" "}
+                😄
+              </p>
+            </div>
+          )}
           <div className="mb-8 text-center">
             <UserAvatar
               size="xl"
@@ -285,7 +311,17 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
   const usernameList = getUsernameList(context.query.user as string);
   const isOrgContext = isValidOrgDomain && currentOrgDomain;
   const dataFetchStart = Date.now();
+  let outOfOffice = false;
 
+  if (usernameList.length === 1) {
+    const result = await handleUserRedirection({ username: usernameList[0] });
+    if (result && result.outOfOffice) {
+      outOfOffice = true;
+    }
+    if (result && result.redirect?.destination) {
+      return result;
+    }
+  }
   const usersInOrgContext = await User.getUsersFromUsernameInOrgContext({
     usernameList,
     isValidOrgDomain,
@@ -374,11 +410,16 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
   }));
 
   // if profile only has one public event-type, redirect to it
-  if (eventTypes.length === 1 && context.query.redirect !== "false") {
+  if (eventTypes.length === 1 && context.query.redirect !== "false" && !outOfOffice) {
+    // Redirect but don't change the URL
+    const urlDestination = `/${user.orgProfile.username}/${eventTypes[0].slug}`;
+    const { query } = context;
+    const urlQuery = new URLSearchParams(encode(query));
+
     return {
       redirect: {
         permanent: false,
-        destination: `/${user.orgProfile.username}/${eventTypes[0].slug}`,
+        destination: `${urlDestination}?${urlQuery}`,
       },
     };
   }
@@ -395,7 +436,7 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
         username: user.username,
         bio: user.bio,
         avatarUrl: user.avatarUrl,
-        away: user.away,
+        away: usernameList.length === 1 ? outOfOffice : user.away,
         verified: user.verified,
         relevantProfile: user.relevantProfile,
       })),
