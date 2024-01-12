@@ -1,6 +1,7 @@
 import type { Session } from "next-auth";
 
 import { getUserAvatarUrl } from "@calcom/lib/getAvatarUrl";
+import logger from "@calcom/lib/logger";
 import { Profile } from "@calcom/lib/server/repository/profile";
 import { User } from "@calcom/lib/server/repository/user";
 import type { TrpcSessionUser } from "@calcom/trpc/server/trpc";
@@ -11,7 +12,7 @@ type MeOptions = {
     session: Session;
   };
 };
-
+const log = logger.getSubLogger({ prefix: ["[error]"] });
 export const meHandler = async ({ ctx }: MeOptions) => {
   const crypto = await import("crypto");
 
@@ -19,44 +20,9 @@ export const meHandler = async ({ ctx }: MeOptions) => {
 
   const allUserEnrichedProfiles = await Profile.getAllProfilesForUser(sessionUser);
 
-  // const organizationProfile = await User.getOrganizationProfile({
-  //   profileId: session.profileId ?? null,
-  //   userId: user.id,
-  // });
   const user = await User.enrichUserWithProfile({ user: sessionUser, profileId: session.profileId ?? null });
 
-  // let chosenOrganization;
-
-  // if (organizationProfile) {
-  //   chosenOrganization = await User.getOrganizationForUser({
-  //     userId: user.id,
-  //     organizationId: organizationProfile.organizationId,
-  //   });
-  //   if (!chosenOrganization) {
-  //     throw new TRPCError({
-  //       code: "INTERNAL_SERVER_ERROR",
-  //       message: "Organization not found for the profile",
-  //     });
-  //   }
-  // }
-
-  // const userWithUserProfile = {
-  //   ...user,
-  //   profile:
-  //     organizationProfile && chosenOrganization
-  //       ? {
-  //           ...organizationProfile,
-  //           organization: {
-  //             name: chosenOrganization.name,
-  //             calVideoLogo: chosenOrganization.calVideoLogo,
-  //             id: chosenOrganization.id,
-  //             slug: chosenOrganization.slug,
-  //             requestedSlug: chosenOrganization.requestedSlug,
-  //           },
-  //         }
-  //       : Profile.getPersonalProfile({ user }),
-  // };
-
+  log.debug("meHandler", { user, session, allUserEnrichedProfiles });
   // Destructuring here only makes it more illegible
   // pick only the part we want to expose in the API
   return {

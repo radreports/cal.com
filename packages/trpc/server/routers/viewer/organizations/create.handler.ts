@@ -140,10 +140,10 @@ export const createHandler = async ({ input, ctx }: CreateOptions) => {
       });
 
       await Profile.createProfile({
-        userId: createOwnerOrg.id,
+        userId: user.id,
         username: slugify(adminUsername),
         organizationId: organization.id,
-        email: createOwnerOrg.email,
+        email: user.email,
       });
       return user;
     });

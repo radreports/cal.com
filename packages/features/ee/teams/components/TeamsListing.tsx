@@ -2,6 +2,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { APP_NAME, WEBAPP_URL } from "@calcom/lib/constants";
+import { isOrganization } from "@calcom/lib/entityPermissionUtils";
 import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
@@ -49,7 +50,10 @@ export function TeamsListing() {
     },
   });
 
-  const teams = useMemo(() => data?.filter((m) => m.accepted && !m.metadata?.isOrganization) || [], [data]);
+  const teams = useMemo(
+    () => data?.filter((team) => team.accepted && !isOrganization({ team })) || [],
+    [data]
+  );
   const invites = useMemo(() => data?.filter((m) => !m.accepted) || [], [data]);
 
   const isCreateTeamButtonDisabled = !!(user?.organizationId && !user?.organization?.isOrgAdmin);

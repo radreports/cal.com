@@ -42,7 +42,6 @@ test.describe("Organization", () => {
       // Check required fields
       await page.locator("button[type=submit]").click();
       await expect(page.locator(".text-red-700")).toHaveCount(3);
-
       // Happy path
       const adminEmail = users.trackEmail({ username: "john", domain: `${orgDomain}.com` });
       await page.locator("input[name=adminEmail]").fill(adminEmail);

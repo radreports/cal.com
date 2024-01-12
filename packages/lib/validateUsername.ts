@@ -40,12 +40,13 @@ export const validateAndGetCorrectedUsernameAndEmail = async ({
   if (username.includes("+")) {
     return { isValid: false, username: undefined, email };
   }
+
   // There is an existingUser if, within an org context or not, the username matches
   // OR if the email matches AND either the email is verified
   // or both username and password are set
+
   const existingUser = await prisma.user.findFirst({
     where: {
-      ...(organizationId ? { organizationId } : {}),
       OR: [
         // When inviting to org, invited user gets created with username now, so in an org context we
         // can't check for username as it will exist on signup
@@ -69,6 +70,7 @@ export const validateAndGetCorrectedUsernameAndEmail = async ({
       email: true,
     },
   });
+
   let validatedUsername = username;
   if (organizationId) {
     validatedUsername = await getUsernameForOrgMember({

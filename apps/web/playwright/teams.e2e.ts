@@ -179,14 +179,14 @@ test.describe("Teams - NonOrg", () => {
       teammates: [{ name: teamMateName }],
     });
 
-    const allUsers = await users.get();
+    const allUsers = users.get();
     const memberUser = allUsers.find((user) => user.name === teamMateName);
 
     // eslint-disable-next-line playwright/no-conditional-in-test
     if (memberUser) {
       await memberUser.apiLogin();
-
       await page.goto("/teams");
+
       await expect(page.locator("[data-testid=new-team-btn]")).toBeHidden();
       await expect(page.locator("[data-testid=create-team-btn]")).toHaveAttribute("disabled", "");
 

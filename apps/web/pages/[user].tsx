@@ -17,12 +17,14 @@ import { handleUserRedirection } from "@calcom/features/booking-redirect/handle-
 import { orgDomainConfig } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { EventTypeDescriptionLazy as EventTypeDescription } from "@calcom/features/eventtypes/components";
 import EmptyPage from "@calcom/features/eventtypes/components/EmptyPage";
+import { DEFAULT_DARK_BRAND_COLOR, DEFAULT_LIGHT_BRAND_COLOR } from "@calcom/lib/constants";
 import { getUsernameList } from "@calcom/lib/defaultEvents";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { useRouterQuery } from "@calcom/lib/hooks/useRouterQuery";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import logger from "@calcom/lib/logger";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
+import { safeStringify } from "@calcom/lib/safeStringify";
 import { User } from "@calcom/lib/server/repository/user";
 import { stripMarkdown } from "@calcom/lib/stripMarkdown";
 import prisma from "@calcom/prisma";
@@ -327,6 +329,8 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
     orgSlug: isValidOrgDomain ? currentOrgDomain : null,
   });
 
+  log.debug("[user]", safeStringify({ usersInOrgContext, isValidOrgDomain, currentOrgDomain }));
+
   const usersWithoutAvatar = usersInOrgContext.map((user) => {
     const { avatar: _1, ...rest } = user;
     return rest;
@@ -385,9 +389,9 @@ export const getServerSideProps: GetServerSideProps<UserPageProps> = async (cont
     name: user.name || user.username || "",
     image: user.avatar,
     theme: user.theme,
-    brandColor: user.brandColor,
+    brandColor: user.brandColor ?? DEFAULT_LIGHT_BRAND_COLOR,
     avatarUrl: user.avatarUrl,
-    darkBrandColor: user.darkBrandColor,
+    darkBrandColor: user.darkBrandColor ?? DEFAULT_DARK_BRAND_COLOR,
     allowSEOIndexing: user.allowSEOIndexing ?? true,
     username: user.username,
     organization: user.profile.organization,

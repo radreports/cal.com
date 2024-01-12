@@ -490,11 +490,11 @@ export const AUTH_OPTIONS: AuthOptions = {
         return token;
       }
       if (account.type === "credentials") {
-        console.log('account.type === "credentials"');
         // return token if credentials,saml-idp
         if (account.provider === "saml-idp") {
           return token;
         }
+
         // any other credentials, add user info
         return {
           ...token,
@@ -507,6 +507,7 @@ export const AUTH_OPTIONS: AuthOptions = {
           belongsToActiveTeam: user?.belongsToActiveTeam,
           org: user?.org,
           locale: user?.locale,
+          profileId: user.profile?.id ?? null,
         } as JWT;
       }
 

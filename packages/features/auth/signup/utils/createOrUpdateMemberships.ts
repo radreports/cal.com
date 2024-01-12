@@ -28,8 +28,20 @@ export const createOrUpdateMemberships = async ({
           username: true,
         },
       });
-      await tx.profile.create({
-        data: {
+      await tx.profile.upsert({
+        where: {
+          userId_organizationId: {
+            userId: user.id,
+            organizationId: team.id,
+          },
+        },
+        create: {
+          uid: Profile.generateProfileUid(),
+          userId: user.id,
+          organizationId: team.id,
+          username: dbUser.username || "",
+        },
+        update: {
           uid: Profile.generateProfileUid(),
           userId: user.id,
           organizationId: team.id,

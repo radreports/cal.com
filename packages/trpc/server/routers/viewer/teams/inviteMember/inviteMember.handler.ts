@@ -1,10 +1,10 @@
-import { getOrgUsernameFromEmail } from "@calcom/features/auth/signup/utils/getOrgUsernameFromEmail";
 import { updateQuantitySubscriptionFromStripe } from "@calcom/features/ee/teams/lib/payments";
 import { checkRateLimitAndThrowError } from "@calcom/lib/checkRateLimitAndThrowError";
 import { IS_TEAM_BILLING_ENABLED } from "@calcom/lib/constants";
+import { isOrganization } from "@calcom/lib/entityPermissionUtils";
+import logger from "@calcom/lib/logger";
 import { getTranslation } from "@calcom/lib/server/i18n";
 import { isOrganisationOwner } from "@calcom/lib/server/queries/organisations";
-import { Profile } from "@calcom/lib/server/repository/profile";
 import { prisma } from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 import type { TrpcSessionUser } from "@calcom/trpc/server/trpc";
@@ -109,25 +109,23 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
     sendEmails(sendVerifEmailsPromises);
   }
 
-  console.log({
+  logger.error({
     existingUsersWithMembersips,
     newUsersEmailsOrUsernames,
-    orgConnectInfoByUsernameOrEmail,
-    autoAcceptEmailDomain,
-    orgVerified,
   });
   // deal with existing users invited to join the team/org
   if (existingUsersWithMembersips.length) {
-    if (!team.metadata?.isOrganization) {
+    if (!isOrganization({ team })) {
       const [autoJoinUsers, regularUsers] = groupUsersByJoinability({
         existingUsersWithMembersips,
         team,
       });
 
-      console.log({
+      logger.error({
         autoJoinUsers,
         regularUsers,
       });
+
       // invited users can autojoin, create their memberships in org
       if (autoJoinUsers.length) {
         await prisma.membership.createMany({
@@ -173,13 +171,13 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
       }
     } else {
       for (const user of existingUsersWithMembersips) {
-        // FIXME: Don't rely on user input
-        await Profile.createProfile({
-          userId: user.id,
-          organizationId: team.id,
-          username: getOrgUsernameFromEmail(user.email, team.metadata.orgAutoAcceptEmail || null),
-          email: user.email,
-        });
+        // await Profile.createProfile({
+        //   userId: user.id,
+        //   organizationId: team.id,
+        //   username: getOrgUsernameFromEmail(user.email, team.metadata.orgAutoAcceptEmail || null),
+        //   email: user.email,
+        // });
+
         const orgConnectionInfo =
           orgConnectInfoByUsernameOrEmail[user.email] || orgConnectInfoByUsernameOrEmail[user.username || ""];
         await prisma.membership.create({

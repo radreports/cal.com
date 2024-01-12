@@ -203,6 +203,9 @@ export const createUsersFixture = (
     ) => {
       const _user = await prisma.user.create({
         data: createUser(workerInfo, opts),
+        include: {
+          profiles: true,
+        },
       });
 
       let defaultEventTypes: SupportedTestEventTypes[] = [
@@ -394,27 +397,28 @@ export const createUsersFixture = (
           }
           // Add Teammates to OrgUsers
           if (scenario.isOrg) {
-            const orgProfiles = {
-              create: teamMates
-                .map((teamUser) => ({
-                  user: {
-                    connect: {
-                      id: teamUser.id,
-                    },
+            const orgProfilesCreate = teamMates
+              .map((teamUser) => ({
+                user: {
+                  connect: {
+                    id: teamUser.id,
                   },
+                },
+                uid: v4(),
+                username: teamUser.username || teamUser.email.split("@")[0],
+              }))
+              .concat([
+                {
+                  user: { connect: { id: user.id } },
                   uid: v4(),
-                  username: teamUser.username || teamUser.email.split("@")[0],
-                }))
-                .concat([
-                  {
-                    user: { connect: { id: user.id } },
-                    uid: v4(),
-                    username: user.username || user.email.split("@")[0],
-                  },
-                ]),
-            };
-            console.log({
-              orgProfiles: JSON.stringify(orgProfiles),
+                  username: user.username || user.email.split("@")[0],
+                },
+              ]);
+
+            const existingProfiles = await prisma.profile.findMany({
+              where: {
+                userId: _user.id,
+              },
             });
 
             await prisma.team.update({
@@ -422,7 +426,15 @@ export const createUsersFixture = (
                 id: team.id,
               },
               data: {
-                orgProfiles,
+                orgProfiles: _user.profiles.length
+                  ? {
+                      connect: _user.profiles.map((profile) => ({ id: profile.id })),
+                    }
+                  : {
+                      create: orgProfilesCreate.filter(
+                        (profile) => !existingProfiles.map((p) => p.userId).includes(profile.user.connect.id)
+                      ),
+                    },
               },
             });
           }

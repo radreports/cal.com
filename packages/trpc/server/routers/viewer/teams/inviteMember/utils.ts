@@ -6,7 +6,6 @@ import { WEBAPP_URL } from "@calcom/lib/constants";
 import logger from "@calcom/lib/logger";
 import { isTeamAdmin } from "@calcom/lib/server/queries";
 import { isOrganisationAdmin } from "@calcom/lib/server/queries/organisations";
-import { Profile } from "@calcom/lib/server/repository/profile";
 import { User } from "@calcom/lib/server/repository/user";
 import slugify from "@calcom/lib/slugify";
 import { prisma } from "@calcom/prisma";
@@ -240,21 +239,21 @@ export async function createNewUsersConnectToOrgIfExists({
             verified: true,
             invitedTo: input.teamId,
             organizationId: orgId || null, // If the user is invited to a child team, they are automatically added to the parent org
-            ...(orgId
-              ? {
-                  profiles: {
-                    createMany: {
-                      data: [
-                        {
-                          uid: Profile.generateProfileUid(),
-                          username,
-                          organizationId: orgId,
-                        },
-                      ],
-                    },
-                  },
-                }
-              : null),
+            // ...(orgId
+            //   ? {
+            //       profiles: {
+            //         createMany: {
+            //           data: [
+            //             {
+            //               uid: Profile.generateProfileUid(),
+            //               username,
+            //               organizationId: orgId,
+            //             },
+            //           ],
+            //         },
+            //       },
+            //     }
+            //   : null),
             teams: {
               create: {
                 teamId: input.teamId,
@@ -548,22 +547,3 @@ export const sendTeamInviteEmails = async ({
 
   await sendEmails(sendEmailsPromises);
 };
-
-export function createOrganizationProfile({
-  userId,
-  organizationId,
-  username,
-  email,
-}: {
-  userId: number;
-  organizationId: number;
-  username: string;
-  email: string;
-}) {
-  return Profile.createProfile({
-    userId: userId,
-    organizationId,
-    username,
-    email,
-  });
-}

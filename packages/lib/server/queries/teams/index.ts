@@ -143,78 +143,71 @@ export async function getTeamWithMembers(args: {
 
   if (!teamOrOrg) return null;
   const currentOrgId = currentOrg?.id ?? (isOrgView ? teamOrOrg.id : teamOrOrg.parent?.id) ?? null;
-
-  const teamOrOrgMemberships = [];
-  for (const membership of teamOrOrg.members) {
-    teamOrOrgMemberships.push({
-      ...membership,
-      user: await User.enrichUserWithOrganizationProfile({
-        user: membership.user,
+  const members = await Promise.all(
+    teamOrOrg.members.map(async (m) => {
+      const user = await User.enrichUserWithOrganizationProfile({
+        user: m.user,
         organizationId: currentOrgId,
-      }),
-    });
-  }
-  const members = teamOrOrgMemberships.map((m) => {
-    const { credentials, ...restUser } = m.user;
-    return {
-      ...restUser,
-      username: m.user.profile?.username ?? restUser.username,
-      role: m.role,
-      profile: m.user.profile,
-      organizationId: m.user.profile?.organizationId ?? null,
-      organization: m.user.profile?.organization,
-      accepted: m.accepted,
-      disableImpersonation: m.disableImpersonation,
-      subteams: orgSlug
-        ? m.user.teams
-            .filter((membership) => membership.team.id !== teamOrOrg.id)
-            .map((membership) => membership.team.slug)
-        : null,
-      avatar: `${WEBAPP_URL}/${m.user.username}/avatar.png`,
-      bookerUrl: getBookerBaseUrlSync(m.user.profile?.organization?.slug || ""),
-      connectedApps: !isTeamView
-        ? credentials?.map((cred) => {
-            const appSlug = cred.app?.slug;
-            let appData = appDataMap.get(appSlug);
+      });
 
-            if (!appData) {
-              appData = getAppFromSlug(appSlug);
-              appDataMap.set(appSlug, appData);
-            }
+      const { credentials, ...restUser } = user;
+      return {
+        ...restUser,
+        username: user.profile?.username ?? restUser.username,
+        role: m.role,
+        profile: user.profile,
+        organizationId: user.profile?.organizationId ?? null,
+        organization: user.profile?.organization,
+        accepted: m.accepted,
+        disableImpersonation: m.disableImpersonation,
+        subteams: orgSlug
+          ? user.teams
+              .filter((membership) => membership.team.id !== teamOrOrg.id)
+              .map((membership) => membership.team.slug)
+          : null,
+        avatar: `${WEBAPP_URL}/${user.username}/avatar.png`,
+        bookerUrl: getBookerBaseUrlSync(user.profile?.organization?.slug || ""),
+        connectedApps: !isTeamView
+          ? credentials?.map((cred) => {
+              const appSlug = cred.app?.slug;
+              let appData = appDataMap.get(appSlug);
 
-            const isCalendar = cred?.app?.categories?.includes("calendar") ?? false;
-            const externalId = isCalendar ? cred.destinationCalendars?.[0]?.externalId : null;
-            return {
-              name: appData?.name ?? null,
-              logo: appData?.logo ?? null,
-              app: cred.app,
-              externalId: externalId ?? null,
-            };
-          })
-        : null,
-    };
-  });
+              if (!appData) {
+                appData = getAppFromSlug(appSlug);
+                appDataMap.set(appSlug, appData);
+              }
 
-  const eventTypesWithUsersUserProfile = [];
-  for (const eventType of teamOrOrg.eventTypes) {
-    const usersWithUserProfile = [];
-    for (const user of eventType.users) {
-      usersWithUserProfile.push(
-        await User.enrichUserWithOrganizationProfile({
-          user: user,
-          organizationId: currentOrgId,
-        })
-      );
-    }
-    eventTypesWithUsersUserProfile.push({
-      ...eventType,
-      users: usersWithUserProfile,
-    });
-  }
-  const eventTypes = eventTypesWithUsersUserProfile.map((eventType) => ({
-    ...eventType,
-    metadata: EventTypeMetaDataSchema.parse(eventType.metadata),
-  }));
+              const isCalendar = cred?.app?.categories?.includes("calendar") ?? false;
+              const externalId = isCalendar ? cred.destinationCalendars?.[0]?.externalId : null;
+              return {
+                name: appData?.name ?? null,
+                logo: appData?.logo ?? null,
+                app: cred.app,
+                externalId: externalId ?? null,
+              };
+            })
+          : null,
+      };
+    })
+  );
+
+  const eventTypes = await Promise.all(
+    teamOrOrg.eventTypes.map(async (eventType) => {
+      return {
+        ...eventType,
+        users: await Promise.all([
+          ...eventType.users.map(
+            async (user) =>
+              await User.enrichUserWithOrganizationProfile({
+                user: user,
+                organizationId: currentOrgId,
+              })
+          ),
+        ]),
+        metadata: EventTypeMetaDataSchema.parse(eventType.metadata),
+      };
+    })
+  );
 
   // Don't leak invite tokens to the frontend
   const { inviteTokens, ...teamWithoutInviteTokens } = teamOrOrg;

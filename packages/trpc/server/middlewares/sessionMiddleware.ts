@@ -87,7 +87,10 @@ export async function getUserFromSession(ctx: TRPCContextInner, session: Maybe<S
 
   const locale = user?.locale ?? ctx.locale;
 
-  const isOrgAdmin = !!user.profile?.organization?.members.length;
+  const isOrgAdmin = !!user.profile?.organization?.members.filter(
+    (member) => (member.role === "ADMIN" || member.role === "OWNER") && member.userId === user.id
+  ).length;
+
   // Want to reduce the amount of data being sent
   if (isOrgAdmin && user.profile?.organization?.members) {
     user.profile.organization.members = [];

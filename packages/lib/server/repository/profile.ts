@@ -174,7 +174,15 @@ export class Profile {
           in: usernames,
         },
         organization: {
-          slug: orgSlug,
+          OR: [
+            { slug: orgSlug },
+            {
+              metadata: {
+                path: ["requestedSlug"],
+                equals: orgSlug,
+              },
+            },
+          ],
         },
       },
       include: {
