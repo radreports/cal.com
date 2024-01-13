@@ -109,10 +109,6 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
     sendEmails(sendVerifEmailsPromises);
   }
 
-  logger.error({
-    existingUsersWithMembersips,
-    newUsersEmailsOrUsernames,
-  });
   // deal with existing users invited to join the team/org
   if (existingUsersWithMembersips.length) {
     if (!isOrganization({ team })) {
