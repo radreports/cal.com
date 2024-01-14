@@ -3,6 +3,7 @@ import { checkRateLimitAndThrowError } from "@calcom/lib/checkRateLimitAndThrowE
 import { IS_TEAM_BILLING_ENABLED } from "@calcom/lib/constants";
 import { isOrganization } from "@calcom/lib/entityPermissionUtils";
 import logger from "@calcom/lib/logger";
+import { safeStringify } from "@calcom/lib/safeStringify";
 import { getTranslation } from "@calcom/lib/server/i18n";
 import { isOrganisationOwner } from "@calcom/lib/server/queries/organisations";
 import { prisma } from "@calcom/prisma";
@@ -26,6 +27,8 @@ import {
   sendTeamInviteEmails,
   sendEmails,
 } from "./utils";
+
+const log = logger.getSubLogger({ prefix: ["inviteMember.handler"] });
 
 type InviteMemberOptions = {
   ctx: {
@@ -74,6 +77,7 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
     isInvitedToOrg: input.isOrg,
     team,
   });
+
   const existingUsersEmailsAndUsernames = existingUsersWithMembersips.reduce(
     (acc, user) => ({
       emails: user.email ? [...acc.emails, user.email] : acc.emails,
@@ -85,6 +89,17 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
     (usernameOrEmail) =>
       !existingUsersEmailsAndUsernames.emails.includes(usernameOrEmail) &&
       !existingUsersEmailsAndUsernames.usernames.includes(usernameOrEmail)
+  );
+
+  log.debug(
+    "inviteMemberHandler",
+    safeStringify({
+      usernameOrEmailsToInvite,
+      orgConnectInfoByUsernameOrEmail,
+      existingUsersWithMembersips,
+      existingUsersEmailsAndUsernames,
+      newUsersEmailsOrUsernames,
+    })
   );
 
   // deal with users to create and invite to team/org
@@ -117,10 +132,14 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
         team,
       });
 
-      logger.error({
-        autoJoinUsers,
-        regularUsers,
-      });
+      log.debug(
+        "Inviting to team",
+        safeStringify({
+          teamId: team.id,
+          autoJoinUsers: autoJoinUsers.map((user) => user.email),
+          regularUsers: regularUsers.map((user) => user.email),
+        })
+      );
 
       // invited users can autojoin, create their memberships in org
       if (autoJoinUsers.length) {
@@ -167,13 +186,6 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
       }
     } else {
       for (const user of existingUsersWithMembersips) {
-        // await Profile.createProfile({
-        //   userId: user.id,
-        //   organizationId: team.id,
-        //   username: getOrgUsernameFromEmail(user.email, team.metadata.orgAutoAcceptEmail || null),
-        //   email: user.email,
-        // });
-
         const orgConnectionInfo =
           orgConnectInfoByUsernameOrEmail[user.email] || orgConnectInfoByUsernameOrEmail[user.username || ""];
         await prisma.membership.create({
@@ -185,6 +197,15 @@ export const inviteMemberHandler = async ({ ctx, input }: InviteMemberOptions) =
           },
         });
       }
+      await sendTeamInviteEmails({
+        currentUserName: ctx?.user?.name,
+        currentUserTeamName: team?.name,
+        existingUsersWithMembersips,
+        language: translation,
+        isOrg: input.isOrg,
+        teamId: team.id,
+        currentUserParentTeamName: team?.parent?.name,
+      });
     }
   }
 
