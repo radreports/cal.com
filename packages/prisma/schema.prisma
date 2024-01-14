@@ -260,18 +260,18 @@ model User {
   accessCodes          AccessCode[]
   bookingRedirects     OutOfOfficeEntry[]
   bookingRedirectsTo   OutOfOfficeEntry[]      @relation(name: "toUser")
-  // Linking account code for orgs v2
-  //linkedByUserId       Int?
-  //linkedBy             User?                   @relation("linked_account", fields: [linkedByUserId], references: [id], onDelete: Cascade)
-  //linkedUsers          User[]                  @relation("linked_account")*/
 
   // Used to lock the user account
   locked   Boolean   @default(false)
   profiles Profile[]
+  movedToProfileId    Int?
+  movedToProfile      Profile?                @relation("moved_to_profile", fields: [movedToProfileId], references: [id], onDelete: SetNull)
 
   @@unique([email])
   @@unique([email, username])
   @@unique([username, organizationId])
+  @@index([username])
+  @@unique([movedToProfileId])
   @@index([emailVerified])
   @@index([identityProvider])
   @@index([identityProviderId])
@@ -288,25 +288,14 @@ model Profile {
   organizationId Int
   organization   Team   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   username       String
-  // hideBranding   Boolean @default(false)
-  // theme          String?
-  // weekStart      String  @default("Sunday")
-  // timeFormat     Int?    @default(12)
-  // allowSEOIndexing Boolean? @default(true)
-  // allowDynamicBooking Boolean? @default(true)
-  // receiveMonthlyDigestEmail Boolean? @default(true)
-  // eventTypes     EventType[] @relation("user_eventtype")
-  // credentials    Credential[]
-  // schedules      Schedule[]
-  // selectedCalendars SelectedCalendar[]
-  // bookings       Booking[]
-
-  // away Boolean @default(false)
-
+  movedFromUserId Int?
+  movedFromUser   User?   @relation("moved_to_profile")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, organizationId])
+  @@unique([movedFromUserId])
+  @@index([uid])
   @@index([userId])
   @@index([organizationId])
 }
